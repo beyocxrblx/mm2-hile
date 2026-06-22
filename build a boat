@@ -1,0 +1,241 @@
+-- Build A Boat For Treasure - Hile Scripti
+-- Executor: Synapse X, Krnl, Fluxus, ScriptWare (Windows)
+-- Özellikler: AutoFarm, Instant Build, No Clip, Speed, Fly, ESP, Infinite Jump, Auto Collect
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- ========== ÖZELLİK DURUMLARI ==========
+local features = {
+    AutoFarm = false,
+    InstantBuild = false,
+    NoClip = false,
+    Speed = false,
+    Fly = false,
+    ESP = false,
+    InfiniteJump = false,
+    AutoCollect = false
+}
+
+-- ========== GUI PANEL ==========
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BABFT_Hile"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 320, 0, 460)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundColor3 = Color3.new(0.05, 0.05, 0.1)
+frame.BackgroundTransparency = 0.2
+frame.BorderSizePixel = 2
+frame.BorderColor3 = Color3.new(0.2, 0.5, 1)
+frame.ClipsDescendants = true
+frame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.Text = "Build A Boat Hile [F1]"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.BackgroundColor3 = Color3.new(0.1, 0.15, 0.3)
+title.BackgroundTransparency = 0.3
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = frame
+
+local subTitle = Instance.new("TextLabel")
+subTitle.Size = UDim2.new(1, 0, 0, 20)
+subTitle.Position = UDim2.new(0, 0, 0, 40)
+subTitle.Text = "F1: Panel | F2: Tümünü Aç/Kapa"
+subTitle.TextColor3 = Color3.new(0.6, 0.6, 0.8)
+subTitle.TextSize = 12
+subTitle.BackgroundTransparency = 1
+subTitle.Font = Enum.Font.Gotham
+subTitle.Parent = frame
+
+local function createButton(text, yPos, featureKey)
+    local btnFrame = Instance.new("Frame")
+    btnFrame.Size = UDim2.new(0.9, 0, 0, 32)
+    btnFrame.Position = UDim2.new(0.05, 0, 0, yPos)
+    btnFrame.BackgroundColor3 = Color3.new(0.15, 0.15, 0.2)
+    btnFrame.BackgroundTransparency = 0.4
+    btnFrame.BorderSizePixel = 1
+    btnFrame.BorderColor3 = Color3.new(0.2, 0.2, 0.3)
+    btnFrame.Parent = frame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 5)
+    btnCorner.Parent = btnFrame
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 1, 0)
+    btn.Text = text .. " [KAPALI]"
+    btn.TextColor3 = Color3.new(1, 0.3, 0.3)
+    btn.TextSize = 13
+    btn.BackgroundTransparency = 1
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Parent = btnFrame
+    
+    btn.MouseButton1Click:Connect(function()
+        features[featureKey] = not features[featureKey]
+        if features[featureKey] then
+            btn.Text = text .. " [AÇIK]"
+            btn.TextColor3 = Color3.new(0.3, 1, 0.3)
+            btnFrame.BorderColor3 = Color3.new(0.3, 1, 0.3)
+        else
+            btn.Text = text .. " [KAPALI]"
+            btn.TextColor3 = Color3.new(1, 0.3, 0.3)
+            btnFrame.BorderColor3 = Color3.new(0.2, 0.2, 0.3)
+        end
+    end)
+end
+
+createButton("AutoFarm (Blok Topla)", 70, "AutoFarm")
+createButton("Instant Build (Anında Yap)", 110, "InstantBuild")
+createButton("NoClip (Duvardan Geç)", 150, "NoClip")
+createButton("Speed Hız", 190, "Speed")
+createButton("Fly Uçuş", 230, "Fly")
+createButton("ESP (Blok ve Oyuncu)", 270, "ESP")
+createButton("Infinite Jump", 310, "InfiniteJump")
+createButton("Auto Collect (Otomatik Topla)", 350, "AutoCollect")
+
+-- ========== PANEL GİZLEME (F1) ==========
+local panelVisible = true
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.F1 then
+        panelVisible = not panelVisible
+        frame.Visible = panelVisible
+    end
+end)
+
+-- ========== TÜMÜNÜ AÇ/KAPA (F2) ==========
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.F2 then
+        local allOn = true
+        for _, state in pairs(features) do
+            if not state then allOn = false end
+        end
+        for key in pairs(features) do
+            features[key] = not allOn
+        end
+        for _, btnFrame in ipairs(frame:GetDescendants()) do
+            if btnFrame:IsA("Frame") and btnFrame:FindFirstChildWhichIsA("TextButton") then
+                local btn = btnFrame:FindFirstChildWhichIsA("TextButton")
+                if btn then
+                    local label = btn.Text:gsub("%s%[.*%]", "")
+                    for k in pairs(features) do
+                        if label:find(k) or k:find(label) then
+                            if features[k] then
+                                btn.Text = label .. " [AÇIK]"
+                                btn.TextColor3 = Color3.new(0.3, 1, 0.3)
+                                btnFrame.BorderColor3 = Color3.new(0.3, 1, 0.3)
+                            else
+                                btn.Text = label .. " [KAPALI]"
+                                btn.TextColor3 = Color3.new(1, 0.3, 0.3)
+                                btnFrame.BorderColor3 = Color3.new(0.2, 0.2, 0.3)
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ========== ESP (Blok + Oyuncu) ==========
+local espObjects = {}
+local function createESP()
+    -- Mevcut ESP'leri temizle
+    for _, obj in ipairs(espObjects) do
+        if obj and obj.Parent then obj:Destroy() end
+    end
+    espObjects = {}
+    
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name ~= "Terrain" and obj.Parent ~= LocalPlayer.Character then
+            -- Blok ESP (altın, tahta, demir vb.)
+            if obj.Size.Magnitude > 2 and obj.Size.Magnitude < 50 then
+                local box = Instance.new("BoxHandleAdornment")
+                box.Size = obj.Size
+                box.CFrame = obj.CFrame
+                box.Color3 = Color3.new(0, 1, 1)
+                box.Transparency = 0.4
+                box.AlwaysOnTop = true
+                box.ZIndex = 10
+                box.Parent = obj
+                table.insert(espObjects, box)
+            end
+        end
+    end
+end
+
+-- ESP güncelleme (her 0.5 saniye)
+local espTimer = 0
+RunService.Heartbeat:Connect(function(dt)
+    espTimer = espTimer + dt
+    if espTimer > 0.5 and features.ESP then
+        espTimer = 0
+        createESP()
+    elseif not features.ESP then
+        for _, obj in ipairs(espObjects) do
+            if obj and obj.Parent then obj:Destroy() end
+        end
+        espObjects = {}
+    end
+end)
+
+-- ========== AUTO FARM (Blok Toplama) ==========
+local function autoFarm()
+    if not LocalPlayer.Character then return end
+    local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local character = LocalPlayer.Character
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    local nearestBlock = nil
+    local nearestDist = math.huge
+    
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name ~= "Terrain" and obj.Parent ~= LocalPlayer.Character then
+            if obj.Size.Magnitude > 2 and obj.Size.Magnitude < 50 then
+                local dist = (obj.Position - root.Position).Magnitude
+                if dist < nearestDist and dist > 5 then
+                    nearestDist = dist
+                    nearestBlock = obj
+                end
+            end
+        end
+    end
+    
+    if nearestBlock then
+        humanoid:MoveTo(nearestBlock.Position + Vector3.new(0, 3, 0))
+        -- Blok toplama (simule)
+        local remote = ReplicatedStorage:FindFirstChild("CollectBlock")
+        if remote then
+            remote:FireServer(nearestBlock)
+        end
+    end
+end
+
+-- ========== INSTANT BUILD (Anında Yap) ==========
+local function instantBuild()
+    if not LocalPlayer.Character then return end
+    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    if tool then
+        local remote = ReplicatedStorage:FindFirstChild("PlaceBlock")
+        if remote then
+            remote
