@@ -1,4 +1,4 @@
--- MM2_TOPLU_HILE.lua
+-- MM2_TOPLU_HILE_TURKCE.lua
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
@@ -6,6 +6,8 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
+local TeleportService = game:GetService("TeleportService")
+local TweenService = game:GetService("TweenService")
 
 -- Tüm özelliklerin durumu
 local features = {
@@ -15,56 +17,120 @@ local features = {
     ESP = false,
     Speed = false,
     Noclip = false,
-    AutoDodge = false
+    AutoDodge = false,
+    Teleport = false
 }
 
--- GUI oluştur
+-- Renk tanımları
+local COLORS = {
+    Sheriff = Color3.new(0, 0.4, 1),   -- Mavi
+    Killer = Color3.new(1, 0, 0),      -- Kırmızı
+    Innocent = Color3.new(0, 1, 0),    -- Yeşil
+    Lobby = Color3.new(1, 1, 1),       -- Beyaz
+    Default = Color3.new(1, 0.7, 0)    -- Turuncu (bilinmeyen)
+}
+
+-- GUI oluştur (Kaliteli tasarım)
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MM2HilePanel"
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 250, 0, 330)
-frame.Position = UDim2.new(0, 10, 0, 10)
-frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-frame.BackgroundTransparency = 0.3
+frame.Size = UDim2.new(0, 320, 0, 450)
+frame.Position = UDim2.new(0, 15, 0, 15)
+frame.BackgroundColor3 = Color3.new(0.05, 0.05, 0.08)
+frame.BackgroundTransparency = 0.15
+frame.BorderSizePixel = 2
+frame.BorderColor3 = Color3.new(0.3, 0.5, 1)
+frame.ClipsDescendants = true
 frame.Parent = screenGui
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "MM2 Hile Paneli [F1]"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.BackgroundTransparency = 1
-title.Parent = frame
+-- Kenar yumuşatma (köşe)
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = frame
 
+-- Başlık çubuğu
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 45)
+titleBar.Position = UDim2.new(0, 0, 0, 0)
+titleBar.BackgroundColor3 = Color3.new(0.15, 0.2, 0.35)
+titleBar.BackgroundTransparency = 0.3
+titleBar.Parent = frame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = titleBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 1, 0)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.Text = "Beyo tarafından hazırlanmıştır"
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.TextScaled = true
+titleLabel.BackgroundTransparency = 1
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = titleBar
+
+-- Alt başlık (kapatma tuşu bilgisi)
+local subTitle = Instance.new("TextLabel")
+subTitle.Size = UDim2.new(1, 0, 0, 20)
+subTitle.Position = UDim2.new(0, 0, 0, 45)
+subTitle.Text = "[F1: Gizle/Göster] [F2: Tümünü Aç/Kapa] [F3: Işınlanma]"
+subTitle.TextColor3 = Color3.new(0.6, 0.6, 0.8)
+subTitle.TextSize = 11
+subTitle.BackgroundTransparency = 1
+subTitle.Font = Enum.Font.Gotham
+subTitle.Parent = frame
+
+-- Buton oluşturma fonksiyonu (kaliteli)
 local function createButton(text, yPos, featureKey)
+    local btnFrame = Instance.new("Frame")
+    btnFrame.Size = UDim2.new(0.9, 0, 0, 35)
+    btnFrame.Position = UDim2.new(0.05, 0, 0, yPos)
+    btnFrame.BackgroundColor3 = Color3.new(0.15, 0.15, 0.2)
+    btnFrame.BackgroundTransparency = 0.4
+    btnFrame.BorderSizePixel = 1
+    btnFrame.BorderColor3 = Color3.new(0.2, 0.2, 0.3)
+    btnFrame.Parent = frame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = btnFrame
+    
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 30)
-    btn.Position = UDim2.new(0.05, 0, 0, yPos)
+    btn.Size = UDim2.new(1, 0, 1, 0)
+    btn.Position = UDim2.new(0, 0, 0, 0)
     btn.Text = text .. " [KAPALI]"
-    btn.TextColor3 = Color3.new(1, 0, 0)
-    btn.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-    btn.Parent = frame
+    btn.TextColor3 = Color3.new(1, 0.3, 0.3)
+    btn.TextSize = 14
+    btn.BackgroundTransparency = 1
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Parent = btnFrame
+    
     btn.MouseButton1Click:Connect(function()
         features[featureKey] = not features[featureKey]
         if features[featureKey] then
             btn.Text = text .. " [AÇIK]"
-            btn.TextColor3 = Color3.new(0, 1, 0)
+            btn.TextColor3 = Color3.new(0.3, 1, 0.3)
+            btnFrame.BorderColor3 = Color3.new(0.3, 1, 0.3)
         else
             btn.Text = text .. " [KAPALI]"
-            btn.TextColor3 = Color3.new(1, 0, 0)
+            btn.TextColor3 = Color3.new(1, 0.3, 0.3)
+            btnFrame.BorderColor3 = Color3.new(0.2, 0.2, 0.3)
         end
     end)
     return btn
 end
 
-createButton("AutoGun", 40, "AutoGun")
-createButton("AutoPickup", 80, "AutoPickup")
-createButton("AutoStab", 120, "AutoStab")
-createButton("ESP", 160, "ESP")
-createButton("Speed", 200, "Speed")
-createButton("Noclip", 240, "Noclip")
-createButton("AutoDodge", 280, "AutoDodge")
+createButton("Otomatik Silah Düşür", 75, "AutoGun")
+createButton("Otomatik Silah Topla", 120, "AutoPickup")
+createButton("Otomatik Bıçakla", 165, "AutoStab")
+createButton("ESP (Oyuncu Renkleri)", 210, "ESP")
+createButton("Hız + Zıplama", 255, "Speed")
+createButton("Duvardan Geç (Noclip)", 300, "Noclip")
+createButton("Otomatik Kaçış", 345, "AutoDodge")
+createButton("Işınlanma Aktif", 390, "Teleport")
 
 -- Panel gizle/göster (F1)
 local panelVisible = true
@@ -87,23 +153,50 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         for key in pairs(features) do
             features[key] = not allOn
         end
-        for _, btn in ipairs(frame:GetDescendants()) do
-            if btn:IsA("TextButton") then
-                local label = btn.Text:gsub("%s%[.*%]", "")
-                local key = label:gsub(" ", "")
-                if features[key] then
-                    btn.Text = label .. " [AÇIK]"
-                    btn.TextColor3 = Color3.new(0, 1, 0)
-                else
-                    btn.Text = label .. " [KAPALI]"
-                    btn.TextColor3 = Color3.new(1, 0, 0)
+        for _, btnFrame in ipairs(frame:GetDescendants()) do
+            if btnFrame:IsA("Frame") and btnFrame:FindFirstChildWhichIsA("TextButton") then
+                local btn = btnFrame:FindFirstChildWhichIsA("TextButton")
+                if btn then
+                    local label = btn.Text:gsub("%s%[.*%]", "")
+                    local key = label:gsub(" ", ""):gsub("(%u)(%l+)", function(a,b) return a..b end)
+                    local found = false
+                    for k in pairs(features) do
+                        if label:find(k) or k:find(label) then
+                            if features[k] then
+                                btn.Text = label .. " [AÇIK]"
+                                btn.TextColor3 = Color3.new(0.3, 1, 0.3)
+                                btnFrame.BorderColor3 = Color3.new(0.3, 1, 0.3)
+                            else
+                                btn.Text = label .. " [KAPALI]"
+                                btn.TextColor3 = Color3.new(1, 0.3, 0.3)
+                                btnFrame.BorderColor3 = Color3.new(0.2, 0.2, 0.3)
+                            end
+                            found = true
+                            break
+                        end
+                    end
+                    if not found then
+                        for k in pairs(features) do
+                            if features[k] then
+                                btn.Text = label .. " [AÇIK]"
+                                btn.TextColor3 = Color3.new(0.3, 1, 0.3)
+                                btnFrame.BorderColor3 = Color3.new(0.3, 1, 0.3)
+                            else
+                                btn.Text = label .. " [KAPALI]"
+                                btn.TextColor3 = Color3.new(1, 0.3, 0.3)
+                                btnFrame.BorderColor3 = Color3.new(0.2, 0.2, 0.3)
+                            end
+                            break
+                        end
+                    end
                 end
             end
         end
     end
 end)
 
--- ESP Billboard oluşturma fonksiyonu
+-- ESP Billboard oluşturma (renkli)
+local espBillboards = {}
 local function createESP(plr)
     if plr == LocalPlayer then return end
     plr.CharacterAdded:Connect(function(char)
@@ -111,20 +204,39 @@ local function createESP(plr)
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
         if char:FindFirstChild("ESP_Billboard") then char.ESP_Billboard:Destroy() end
+        
         local bill = Instance.new("BillboardGui")
         bill.Name = "ESP_Billboard"
-        bill.Size = UDim2.new(0, 200, 0, 50)
+        bill.Size = UDim2.new(0, 220, 0, 60)
         bill.Adornee = root
-        bill.StudsOffset = Vector3.new(0, 3, 0)
+        bill.StudsOffset = Vector3.new(0, 3.5, 0)
         bill.AlwaysOnTop = true
+        bill.Enabled = false
+        
         local text = Instance.new("TextLabel")
         text.Name = "ESP_Text"
-        text.Text = plr.Name .. " [Boss]"
-        text.TextColor3 = Color3.new(1, 0, 0)
+        text.Text = plr.Name .. " [Bilinmiyor]"
+        text.TextColor3 = COLORS.Default
+        text.TextSize = 16
         text.BackgroundTransparency = 1
         text.Size = UDim2.new(1, 0, 1, 0)
+        text.Font = Enum.Font.GothamBold
+        text.TextStrokeTransparency = 0.5
+        text.TextStrokeColor3 = Color3.new(0, 0, 0)
         text.Parent = bill
+        
+        -- İsim arka planı (renkli çerçeve)
+        local bg = Instance.new("Frame")
+        bg.Name = "ESP_BG"
+        bg.Size = UDim2.new(1, 10, 1, 0)
+        bg.Position = UDim2.new(0, -5, 0, 0)
+        bg.BackgroundColor3 = Color3.new(0, 0, 0)
+        bg.BackgroundTransparency = 0.6
+        bg.BorderSizePixel = 2
+        bg.Parent = bill
+        
         bill.Parent = char
+        espBillboards[plr] = bill
     end)
 end
 
@@ -132,25 +244,144 @@ for _, plr in ipairs(Players:GetPlayers()) do
     createESP(plr)
 end
 Players.PlayerAdded:Connect(createESP)
+Players.PlayerRemoving:Connect(function(plr)
+    espBillboards[plr] = nil
+end)
 
--- ESP metin güncelleme fonksiyonu
-local function updateESPText()
+-- ESP renk ve rol güncelleme
+local function updateESPColors()
+    -- Oyuncu rollerini belirle (MM2 mantığına göre)
+    local sheriff = nil
+    local killer = nil
+    local innocents = {}
+    local lobbyPlayers = {}
+    
+    -- Rol tespiti (oyun içi verilere göre - örnek mantık)
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
-            local bill = plr.Character:FindFirstChild("ESP_Billboard")
-            if bill then
-                local text = bill:FindFirstChild("ESP_Text")
-                if text then
-                    local tool = plr.Character:FindFirstChildOfClass("Tool")
-                    local weaponName = tool and tool.Name or "Boss"
-                    text.Text = plr.Name .. " [" .. weaponName .. "]"
+            local char = plr.Character
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then
+                if tool.Name == "Sheriff" or tool.Name == "Gun" then
+                    sheriff = plr
+                elseif tool.Name == "Knife" then
+                    killer = plr
+                else
+                    table.insert(innocents, plr)
                 end
+            else
+                table.insert(lobbyPlayers, plr)
+            end
+        end
+    end
+    
+    -- ESP renklerini uygula
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and espBillboards[plr] then
+            local bill = espBillboards[plr]
+            local text = bill:FindFirstChild("ESP_Text")
+            local bg = bill:FindFirstChild("ESP_BG")
+            if text then
+                local roleName = ""
+                local color = COLORS.Default
+                local bgColor = Color3.new(0, 0, 0)
+                
+                if plr == sheriff then
+                    roleName = "Şerif"
+                    color = COLORS.Sheriff
+                    bgColor = COLORS.Sheriff
+                elseif plr == killer then
+                    roleName = "Katil"
+                    color = COLORS.Killer
+                    bgColor = COLORS.Killer
+                elseif table.find(innocents, plr) then
+                    roleName = "Masum"
+                    color = COLORS.Innocent
+                    bgColor = COLORS.Innocent
+                else
+                    roleName = "Lobi"
+                    color = COLORS.Lobby
+                    bgColor = COLORS.Lobby
+                end
+                
+                text.Text = plr.Name .. " [" .. roleName .. "]"
+                text.TextColor3 = color
+                if bg then
+                    bg.BackgroundColor3 = bgColor
+                    bg.BackgroundTransparency = 0.5
+                    bg.BorderColor3 = color
+                end
+                bill.Enabled = features.ESP
             end
         end
     end
 end
 
--- ANA DÖNGÜ (tüm feature'lar)
+-- Işınlanma fonksiyonu (F3 ile)
+local function teleportToLocation(location)
+    if not LocalPlayer.Character then return end
+    local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    if features.Teleport then
+        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(root, tweenInfo, {CFrame = CFrame.new(location)})
+        tween:Play()
+    end
+end
+
+-- F3 ile ışınlanma menüsü
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.F3 then
+        if not features.Teleport then
+            print("Işınlanma aktif değil! Önce butondan açın.")
+            return
+        end
+        -- Haritadaki belirli noktalara ışınlanma (örnek konumlar)
+        local locations = {
+            ["Orta"] = Vector3.new(0, 3, 0),
+            ["Köşe 1"] = Vector3.new(-30, 3, 30),
+            ["Köşe 2"] = Vector3.new(30, 3, -30),
+            ["Köşe 3"] = Vector3.new(-30, 3, -30),
+            ["Köşe 4"] = Vector3.new(30, 3, 30),
+            ["Yüksek"] = Vector3.new(0, 20, 0)
+        }
+        -- Basit menü: konsoldan yazdır
+        print("=== IŞINLANMA KONUMLARI ===")
+        print("1: Orta")
+        print("2: Köşe 1")
+        print("3: Köşe 2")
+        print("4: Köşe 3")
+        print("5: Köşe 4")
+        print("6: Yüksek")
+        print("Işınlanmak için sayı tuşlayın (1-6)")
+        
+        -- Klavye dinleme (basit)
+        local connection
+        connection = UserInputService.InputBegan:Connect(function(inp, gp)
+            if gp then return end
+            if inp.KeyCode == Enum.KeyCode.One then
+                teleportToLocation(locations["Orta"])
+            elseif inp.KeyCode == Enum.KeyCode.Two then
+                teleportToLocation(locations["Köşe 1"])
+            elseif inp.KeyCode == Enum.KeyCode.Three then
+                teleportToLocation(locations["Köşe 2"])
+            elseif inp.KeyCode == Enum.KeyCode.Four then
+                teleportToLocation(locations["Köşe 3"])
+            elseif inp.KeyCode == Enum.KeyCode.Five then
+                teleportToLocation(locations["Köşe 4"])
+            elseif inp.KeyCode == Enum.KeyCode.Six then
+                teleportToLocation(locations["Yüksek"])
+            else
+                connection:Disconnect()
+                return
+            end
+            connection:Disconnect()
+        end)
+    end
+end)
+
+-- ANA DÖNGÜ
 RunService.Heartbeat:Connect(function()
     if not LocalPlayer.Character then return end
     local character = LocalPlayer.Character
@@ -207,36 +438,19 @@ RunService.Heartbeat:Connect(function()
         end
     end
 
-    -- ESP (Billboard görünürlük)
+    -- ESP renk güncelleme (saniyede 2 kez)
     if features.ESP then
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= LocalPlayer and plr.Character then
-                local bill = plr.Character:FindFirstChild("ESP_Billboard")
-                if bill then
-                    bill.Enabled = true
-                end
-            end
-        end
+        updateESPColors()
     else
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= LocalPlayer and plr.Character then
-                local bill = plr.Character:FindFirstChild("ESP_Billboard")
-                if bill then
-                    bill.Enabled = false
-                end
-            end
+        for _, bill in pairs(espBillboards) do
+            if bill then bill.Enabled = false end
         end
-    end
-
-    -- ESP metin güncelle (her 0.5 saniye)
-    if features.ESP then
-        updateESPText()
     end
 
     -- Speed
     if features.Speed then
-        humanoid.WalkSpeed = 50
-        humanoid.JumpPower = 80
+        humanoid.WalkSpeed = 55
+        humanoid.JumpPower = 85
     else
         humanoid.WalkSpeed = 16
         humanoid.JumpPower = 50
@@ -274,4 +488,5 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-print("MM2 Toplu Hile Yüklendi! F1:Panel F2:Toplu Aç/Kapa")
+print("MM2 Toplu Hile (Türkçe) Yüklendi! Beyo tarafından hazırlanmıştır.")
+print("F1: Panel Gizle/Göster | F2: Tüm Hileleri Aç/Kapa | F3: Işınlanma Menüsü")
