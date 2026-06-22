@@ -1,9 +1,11 @@
--- MM2_Hile_Paneli.lua
+-- MM2_TOPLU_HILE.lua
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
 
 -- Tüm özelliklerin durumu
 local features = {
@@ -22,7 +24,7 @@ screenGui.Name = "MM2HilePanel"
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 250, 0, 300)
+frame.Size = UDim2.new(0, 250, 0, 330)
 frame.Position = UDim2.new(0, 10, 0, 10)
 frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
 frame.BackgroundTransparency = 0.3
@@ -30,12 +32,11 @@ frame.Parent = screenGui
 
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "MM2 Hile Paneli [F1 Kapat]"
+title.Text = "MM2 Hile Paneli [F1]"
 title.TextColor3 = Color3.new(1, 1, 1)
 title.BackgroundTransparency = 1
 title.Parent = frame
 
--- Buton oluşturma fonksiyonu
 local function createButton(text, yPos, featureKey)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.9, 0, 0, 30)
@@ -44,7 +45,6 @@ local function createButton(text, yPos, featureKey)
     btn.TextColor3 = Color3.new(1, 0, 0)
     btn.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
     btn.Parent = frame
-    
     btn.MouseButton1Click:Connect(function()
         features[featureKey] = not features[featureKey]
         if features[featureKey] then
@@ -66,7 +66,7 @@ createButton("Speed", 200, "Speed")
 createButton("Noclip", 240, "Noclip")
 createButton("AutoDodge", 280, "AutoDodge")
 
--- F1 ile paneli kapat/aç
+-- Panel gizle/göster (F1)
 local panelVisible = true
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
@@ -75,3 +75,203 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         frame.Visible = panelVisible
     end
 end)
+
+-- Tüm özellikleri toplu aç/kapa (F2)
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.F2 then
+        local allOn = true
+        for _, state in pairs(features) do
+            if not state then allOn = false end
+        end
+        for key in pairs(features) do
+            features[key] = not allOn
+        end
+        for _, btn in ipairs(frame:GetDescendants()) do
+            if btn:IsA("TextButton") then
+                local label = btn.Text:gsub("%s%[.*%]", "")
+                local key = label:gsub(" ", "")
+                if features[key] then
+                    btn.Text = label .. " [AÇIK]"
+                    btn.TextColor3 = Color3.new(0, 1, 0)
+                else
+                    btn.Text = label .. " [KAPALI]"
+                    btn.TextColor3 = Color3.new(1, 0, 0)
+                end
+            end
+        end
+    end
+end)
+
+-- ESP Billboard oluşturma fonksiyonu
+local function createESP(plr)
+    if plr == LocalPlayer then return end
+    plr.CharacterAdded:Connect(function(char)
+        wait(0.5)
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        if char:FindFirstChild("ESP_Billboard") then char.ESP_Billboard:Destroy() end
+        local bill = Instance.new("BillboardGui")
+        bill.Name = "ESP_Billboard"
+        bill.Size = UDim2.new(0, 200, 0, 50)
+        bill.Adornee = root
+        bill.StudsOffset = Vector3.new(0, 3, 0)
+        bill.AlwaysOnTop = true
+        local text = Instance.new("TextLabel")
+        text.Name = "ESP_Text"
+        text.Text = plr.Name .. " [Boss]"
+        text.TextColor3 = Color3.new(1, 0, 0)
+        text.BackgroundTransparency = 1
+        text.Size = UDim2.new(1, 0, 1, 0)
+        text.Parent = bill
+        bill.Parent = char
+    end)
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+    createESP(plr)
+end
+Players.PlayerAdded:Connect(createESP)
+
+-- ESP metin güncelleme fonksiyonu
+local function updateESPText()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local bill = plr.Character:FindFirstChild("ESP_Billboard")
+            if bill then
+                local text = bill:FindFirstChild("ESP_Text")
+                if text then
+                    local tool = plr.Character:FindFirstChildOfClass("Tool")
+                    local weaponName = tool and tool.Name or "Boss"
+                    text.Text = plr.Name .. " [" .. weaponName .. "]"
+                end
+            end
+        end
+    end
+end
+
+-- ANA DÖNGÜ (tüm feature'lar)
+RunService.Heartbeat:Connect(function()
+    if not LocalPlayer.Character then return end
+    local character = LocalPlayer.Character
+    local humanoid = character:FindFirstChild("Humanoid")
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not root then return end
+
+    -- AutoGun
+    if features.AutoGun then
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool then
+            local remote = ReplicatedStorage:FindFirstChild("Remotes")
+            if remote then
+                local drop = remote:FindFirstChild("DropTool")
+                if drop then drop:FireServer(tool) end
+            end
+        end
+    end
+
+    -- AutoPickup
+    if features.AutoPickup then
+        for _, item in ipairs(Workspace:GetDescendants()) do
+            if item:IsA("Tool") and item:FindFirstChild("Handle") then
+                local dist = (item.Handle.Position - root.Position).Magnitude
+                if dist < 15 then
+                    local remote = ReplicatedStorage:FindFirstChild("Remotes")
+                    if remote then
+                        local pickup = remote:FindFirstChild("PickupTool")
+                        if pickup then pickup:FireServer(item) end
+                    end
+                    wait(0.05)
+                end
+            end
+        end
+    end
+
+    -- AutoStab
+    if features.AutoStab then
+        local knife = character:FindFirstChildWhichIsA("Tool")
+        if knife and knife.Name == "Knife" then
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (plr.Character.HumanoidRootPart.Position - root.Position).Magnitude
+                    if dist < 5 then
+                        local remote = ReplicatedStorage:FindFirstChild("Remotes")
+                        if remote then
+                            local stab = remote:FindFirstChild("Stab")
+                            if stab then stab:FireServer(knife, plr.Character.HumanoidRootPart) end
+                        end
+                        wait(0.15)
+                    end
+                end
+            end
+        end
+    end
+
+    -- ESP (Billboard görünürlük)
+    if features.ESP then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local bill = plr.Character:FindFirstChild("ESP_Billboard")
+                if bill then
+                    bill.Enabled = true
+                end
+            end
+        end
+    else
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local bill = plr.Character:FindFirstChild("ESP_Billboard")
+                if bill then
+                    bill.Enabled = false
+                end
+            end
+        end
+    end
+
+    -- ESP metin güncelle (her 0.5 saniye)
+    if features.ESP then
+        updateESPText()
+    end
+
+    -- Speed
+    if features.Speed then
+        humanoid.WalkSpeed = 50
+        humanoid.JumpPower = 80
+    else
+        humanoid.WalkSpeed = 16
+        humanoid.JumpPower = 50
+    end
+
+    -- Noclip
+    if features.Noclip then
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    else
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+
+    -- AutoDodge
+    if features.AutoDodge then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local knife = plr.Character:FindFirstChildWhichIsA("Tool")
+                if knife and knife.Name == "Knife" then
+                    local dist = (plr.Character.HumanoidRootPart.Position - root.Position).Magnitude
+                    if dist < 8 then
+                        local away = (root.Position - plr.Character.HumanoidRootPart.Position).Unit * 15
+                        humanoid:MoveTo(root.Position + away)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+print("MM2 Toplu Hile Yüklendi! F1:Panel F2:Toplu Aç/Kapa")
