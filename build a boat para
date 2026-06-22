@@ -1,4 +1,4 @@
--- Build A Boat For Treasure - Otomatik Uç + Reset (Çalışan Basit Versiyon)
+-- Build A Boat For Treasure - Sarı Takım İçin Otomatik Uç + Reset
 -- Executor: Synapse X, Krnl, Fluxus, ScriptWare
 
 local Players = game:GetService("Players")
@@ -8,7 +8,6 @@ local RunService = game:GetService("RunService")
 
 local flying = false
 local targetZ = -1600  -- Map sonu Z koordinatı
-local resetDistance = 50  -- Map sonuna yaklaşınca reset
 
 -- Ana döngü
 RunService.Heartbeat:Connect(function()
@@ -22,18 +21,17 @@ RunService.Heartbeat:Connect(function()
     -- Uçma modu
     humanoid.PlatformStand = true
     
-    -- İleri doğru uç (Z ekseninde negatif yönde)
+    -- Sarı takım pozisyonu: Z negatif yönde ilerle
+    -- Sarı takım genelde başlangıçta Z=0 civarındadır, beyaz takım Z pozitif yönde gider
     local direction = Vector3.new(0, 0, -1)
     root.Velocity = direction * 100
     
     -- Map sonuna geldi mi kontrol et
     if root.Position.Z <= targetZ then
-        -- Reset at (karakteri öldür)
         humanoid.Health = 0
         flying = false
         print("Map sonu! Reset atıldı.")
         
-        -- Yeniden doğunca tekrar başlat
         LocalPlayer.CharacterAdded:Connect(function()
             wait(1)
             if flying then return end
@@ -48,7 +46,7 @@ UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl then
         flying = not flying
         if flying then
-            print("Otomatik uç AÇIK")
+            print("Sarı takım otomatik uç AÇIK (Z negatif yönde)")
         else
             print("Otomatik uç KAPALI")
             if LocalPlayer.Character then
@@ -61,4 +59,4 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
-print("Yüklendi! Ctrl ile AÇ/KAPA yapın.")
+print("Yüklendi! Ctrl ile AÇ/KAPA yapın. Sarı takım için Z negatif yönde uçar.")
