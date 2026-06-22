@@ -1,4 +1,4 @@
--- MM2_TOPLU_HILE_TURKCE_V2.lua
+-- MM2_TOPLU_HILE_TURKCE_V3.lua
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
 local TweenService = game:GetService("TweenService")
-local CollectionService = game:GetService("CollectionService")
+local StarterGui = game:GetService("StarterGui")
 
 -- Tüm özelliklerin durumu
 local features = {
@@ -23,130 +23,142 @@ local features = {
 
 -- Renk tanımları
 local COLORS = {
-    Sheriff = Color3.new(0, 0.4, 1),   -- Mavi
-    Killer = Color3.new(1, 0, 0),      -- Kırmızı
-    Innocent = Color3.new(0, 1, 0),    -- Yeşil
-    Lobby = Color3.new(1, 1, 1),       -- Beyaz
-    Default = Color3.new(1, 0.7, 0)    -- Turuncu
+    Sheriff = Color3.new(0, 0.4, 1),
+    Killer = Color3.new(1, 0, 0),
+    Innocent = Color3.new(0, 1, 0),
+    Lobby = Color3.new(1, 1, 1),
+    Default = Color3.new(1, 0.7, 0)
 }
 
--- GUI oluştur
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "MM2HilePanel"
-screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 340, 0, 490)
-frame.Position = UDim2.new(0, 15, 0, 15)
-frame.BackgroundColor3 = Color3.new(0.05, 0.05, 0.08)
-frame.BackgroundTransparency = 0.15
-frame.BorderSizePixel = 2
-frame.BorderColor3 = Color3.new(0.3, 0.5, 1)
-frame.ClipsDescendants = true
-frame.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = frame
-
-local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 45)
-titleBar.Position = UDim2.new(0, 0, 0, 0)
-titleBar.BackgroundColor3 = Color3.new(0.15, 0.2, 0.35)
-titleBar.BackgroundTransparency = 0.3
-titleBar.Parent = frame
-
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 12)
-titleCorner.Parent = titleBar
-
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, 0, 1, 0)
-titleLabel.Text = "Beyo tarafından hazırlanmıştır"
-titleLabel.TextColor3 = Color3.new(1, 1, 1)
-titleLabel.TextScaled = true
-titleLabel.BackgroundTransparency = 1
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.Parent = titleBar
-
-local subTitle = Instance.new("TextLabel")
-subTitle.Size = UDim2.new(1, 0, 0, 20)
-subTitle.Position = UDim2.new(0, 0, 0, 45)
-subTitle.Text = "[Ctrl: Gizle/Göster] [F2: Tümünü Aç/Kapa] [F3: Işınlanma]"
-subTitle.TextColor3 = Color3.new(0.6, 0.6, 0.8)
-subTitle.TextSize = 11
-subTitle.BackgroundTransparency = 1
-subTitle.Font = Enum.Font.Gotham
-subTitle.Parent = frame
-
-local function createButton(text, yPos, featureKey)
-    local btnFrame = Instance.new("Frame")
-    btnFrame.Size = UDim2.new(0.9, 0, 0, 35)
-    btnFrame.Position = UDim2.new(0.05, 0, 0, yPos)
-    btnFrame.BackgroundColor3 = Color3.new(0.15, 0.15, 0.2)
-    btnFrame.BackgroundTransparency = 0.4
-    btnFrame.BorderSizePixel = 1
-    btnFrame.BorderColor3 = Color3.new(0.2, 0.2, 0.3)
-    btnFrame.Parent = frame
+-- GUI'yi oluşturan fonksiyon
+local function createGUI()
+    -- Eski GUI'yi temizle
+    if LocalPlayer:FindFirstChild("PlayerGui") then
+        local oldGui = LocalPlayer.PlayerGui:FindFirstChild("MM2HilePanel")
+        if oldGui then oldGui:Destroy() end
+    end
     
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 6)
-    btnCorner.Parent = btnFrame
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "MM2HilePanel"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 1, 0)
-    btn.Text = text .. " [KAPALI]"
-    btn.TextColor3 = Color3.new(1, 0.3, 0.3)
-    btn.TextSize = 14
-    btn.BackgroundTransparency = 1
-    btn.Font = Enum.Font.GothamSemibold
-    btn.Parent = btnFrame
+    -- Ana frame
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 340, 0, 490)
+    frame.Position = UDim2.new(0, 15, 0, 15)
+    frame.BackgroundColor3 = Color3.new(0.05, 0.05, 0.08)
+    frame.BackgroundTransparency = 0.15
+    frame.BorderSizePixel = 2
+    frame.BorderColor3 = Color3.new(0.3, 0.5, 1)
+    frame.ClipsDescendants = true
+    frame.Parent = screenGui
     
-    btn.MouseButton1Click:Connect(function()
-        features[featureKey] = not features[featureKey]
-        if features[featureKey] then
-            btn.Text = text .. " [AÇIK]"
-            btn.TextColor3 = Color3.new(0.3, 1, 0.3)
-            btnFrame.BorderColor3 = Color3.new(0.3, 1, 0.3)
-        else
-            btn.Text = text .. " [KAPALI]"
-            btn.TextColor3 = Color3.new(1, 0.3, 0.3)
-            btnFrame.BorderColor3 = Color3.new(0.2, 0.2, 0.3)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = frame
+    
+    -- Başlık
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 45)
+    titleBar.Position = UDim2.new(0, 0, 0, 0)
+    titleBar.BackgroundColor3 = Color3.new(0.15, 0.2, 0.35)
+    titleBar.BackgroundTransparency = 0.3
+    titleBar.Parent = frame
+    
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 12)
+    titleCorner.Parent = titleBar
+    
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, 0, 1, 0)
+    titleLabel.Text = "Beyo tarafından hazırlanmıştır"
+    titleLabel.TextColor3 = Color3.new(1, 1, 1)
+    titleLabel.TextScaled = true
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Parent = titleBar
+    
+    -- Alt başlık
+    local subTitle = Instance.new("TextLabel")
+    subTitle.Size = UDim2.new(1, 0, 0, 20)
+    subTitle.Position = UDim2.new(0, 0, 0, 45)
+    subTitle.Text = "[Ctrl: Gizle/Göster] [F2: Tümünü Aç/Kapa] [F3: Işınlanma]"
+    subTitle.TextColor3 = Color3.new(0.6, 0.6, 0.8)
+    subTitle.TextSize = 11
+    subTitle.BackgroundTransparency = 1
+    subTitle.Font = Enum.Font.Gotham
+    subTitle.Parent = frame
+    
+    -- Buton oluşturma fonksiyonu
+    local function createButton(text, yPos, featureKey)
+        local btnFrame = Instance.new("Frame")
+        btnFrame.Size = UDim2.new(0.9, 0, 0, 35)
+        btnFrame.Position = UDim2.new(0.05, 0, 0, yPos)
+        btnFrame.BackgroundColor3 = Color3.new(0.15, 0.15, 0.2)
+        btnFrame.BackgroundTransparency = 0.4
+        btnFrame.BorderSizePixel = 1
+        btnFrame.BorderColor3 = Color3.new(0.2, 0.2, 0.3)
+        btnFrame.Parent = frame
+        
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.Parent = btnFrame
+        
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 1, 0)
+        btn.Text = text .. " [KAPALI]"
+        btn.TextColor3 = Color3.new(1, 0.3, 0.3)
+        btn.TextSize = 14
+        btn.BackgroundTransparency = 1
+        btn.Font = Enum.Font.GothamSemibold
+        btn.Parent = btnFrame
+        
+        btn.MouseButton1Click:Connect(function()
+            features[featureKey] = not features[featureKey]
+            if features[featureKey] then
+                btn.Text = text .. " [AÇIK]"
+                btn.TextColor3 = Color3.new(0.3, 1, 0.3)
+                btnFrame.BorderColor3 = Color3.new(0.3, 1, 0.3)
+            else
+                btn.Text = text .. " [KAPALI]"
+                btn.TextColor3 = Color3.new(1, 0.3, 0.3)
+                btnFrame.BorderColor3 = Color3.new(0.2, 0.2, 0.3)
+            end
+        end)
+        return btn
+    end
+    
+    createButton("Otomatik Silah Topla", 75, "AutoPickup")
+    createButton("Otomatik Bıçakla", 120, "AutoStab")
+    createButton("ESP + Hitbox (Renkli)", 165, "ESP")
+    createButton("Hız + Zıplama", 210, "Speed")
+    createButton("Duvardan Geç (Noclip)", 255, "Noclip")
+    createButton("AFK Farm (Otomatik)", 300, "AFKFarm")
+    createButton("Görünmez Ol", 345, "Invisible")
+    createButton("Işınlanma Aktif", 390, "Teleport")
+    
+    -- Panel gizle/göster (Ctrl)
+    local panelVisible = true
+    UserInputService.InputBegan:Connect(function(input, gpe)
+        if gpe then return end
+        if input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl then
+            panelVisible = not panelVisible
+            frame.Visible = panelVisible
         end
     end)
-    return btn
+    
+    -- Ölünce GUI'yi yeniden oluştur
+    LocalPlayer.CharacterAdded:Connect(function()
+        wait(0.5)
+        createGUI()
+    end)
+    
+    return screenGui
 end
 
-createButton("Otomatik Silah Topla", 75, "AutoPickup")
-createButton("Otomatik Bıçakla", 120, "AutoStab")
-createButton("ESP + Hitbox (Renkli)", 165, "ESP")
-createButton("Hız + Zıplama", 210, "Speed")
-createButton("Duvardan Geç (Noclip)", 255, "Noclip")
-createButton("AFK Farm (Otomatik)", 300, "AFKFarm")
-createButton("Görünmez Ol", 345, "Invisible")
-createButton("Işınlanma Aktif", 390, "Teleport")
-
--- Panel gizle/göster (Ctrl)
-local panelVisible = true
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl then
-        panelVisible = not panelVisible
-        frame.Visible = panelVisible
-    end
-end)
-
--- Ölünce GUI'yi yeniden oluştur
-LocalPlayer.CharacterAdded:Connect(function()
-    wait(0.5)
-    if screenGui and screenGui.Parent then
-        screenGui:Destroy()
-    end
-    -- GUI'yi yeniden oluştur (bu script çalıştığı için tekrar çalışmaz, ama executo reload gerekir)
-    -- Not: Bu script zaten calisiyorsa, tekrar execute edilmesi gerekir. 
-    -- Bu yüzden bir uyari verelim:
-    print("GUI yeniden olusturuluyor... Scripti tekrar execute edin.")
-end)
+-- GUI'yi başlat
+createGUI()
 
 -- ESP Billboard + Hitbox oluşturma
 local espData = {}
@@ -158,7 +170,6 @@ local function createESP(plr)
         if not root then return end
         if char:FindFirstChild("ESP_Billboard") then char.ESP_Billboard:Destroy() end
         
-        -- Billboard (isim + rol)
         local bill = Instance.new("BillboardGui")
         bill.Name = "ESP_Billboard"
         bill.Size = UDim2.new(0, 240, 0, 70)
@@ -190,12 +201,10 @@ local function createESP(plr)
         
         bill.Parent = char
         
-        -- Hitbox çizgileri (Highlight)
         local hitboxGroup = Instance.new("Folder")
         hitboxGroup.Name = "Hitbox_ESP"
         hitboxGroup.Parent = char
         
-        -- Vücut parçaları için Highlight (tüm uzuvlar)
         local parts = {"Head", "HumanoidRootPart", "LeftArm", "RightArm", "LeftLeg", "RightLeg", "UpperTorso", "LowerTorso"}
         for _, partName in ipairs(parts) do
             local part = char:FindFirstChild(partName)
@@ -206,7 +215,6 @@ local function createESP(plr)
                 highlight.DepthMode = Enum.HighlightDepthMode.Occluded
                 highlight.Enabled = false
                 highlight.Parent = hitboxGroup
-                table.insert(espData, {plr = plr, highlight = highlight, part = part})
             end
         end
         
@@ -232,7 +240,6 @@ local function updateESPAndHitbox()
     local sheriff = nil
     local killer = nil
     local innocents = {}
-    local lobbyPlayers = {}
     
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
@@ -247,7 +254,7 @@ local function updateESPAndHitbox()
                     table.insert(innocents, plr)
                 end
             else
-                table.insert(lobbyPlayers, plr)
+                table.insert(innocents, plr)
             end
         end
     end
@@ -291,7 +298,6 @@ local function updateESPAndHitbox()
                 bill.Enabled = features.ESP
             end
             
-            -- Hitbox renklerini güncelle
             if hitboxGroup then
                 for _, highlight in ipairs(hitboxGroup:GetChildren()) do
                     if highlight:IsA("Highlight") then
@@ -307,19 +313,17 @@ local function updateESPAndHitbox()
     end
 end
 
--- AFK Farm (otomatik yürüme + silah toplama)
+-- AFK Farm
 local afkRunning = false
 local function startAFKFarm()
     if not LocalPlayer.Character then return end
     local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
     if not humanoid then return end
     afkRunning = true
-    while features.AFKFork and afkRunning do
+    while features.AFKFarm and afkRunning do
         if LocalPlayer.Character and humanoid then
-            -- Rastgele yürü
             local randomDir = Vector3.new(math.random(-50, 50), 0, math.random(-50, 50))
             humanoid:MoveTo(LocalPlayer.Character.HumanoidRootPart.Position + randomDir)
-            -- Otomatik silah topla (AutoPickup ile aynı)
             for _, item in ipairs(Workspace:GetDescendants()) do
                 if item:IsA("Tool") and item:FindFirstChild("Handle") then
                     local dist = (item.Handle.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
@@ -338,7 +342,7 @@ local function startAFKFarm()
     end
 end
 
--- Görünmez ol (Transparency + CanCollide false)
+-- Görünmez ol
 local function setInvisible(state)
     if not LocalPlayer.Character then return end
     for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
@@ -359,7 +363,7 @@ local function setInvisible(state)
     end
 end
 
--- Işınlanma (F3)
+-- Işınlanma
 local function teleportToLocation(location)
     if not LocalPlayer.Character then return end
     local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -419,7 +423,7 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         for key in pairs(features) do
             features[key] = not allOn
         end
-        for _, btnFrame in ipairs(frame:GetDescendants()) do
+        for _, btnFrame in ipairs(LocalPlayer.PlayerGui:FindFirstChild("MM2HilePanel"):GetDescendants()) do
             if btnFrame:IsA("Frame") and btnFrame:FindFirstChildWhichIsA("TextButton") then
                 local btn = btnFrame:FindFirstChildWhichIsA("TextButton")
                 if btn then
@@ -489,7 +493,7 @@ RunService.Heartbeat:Connect(function()
         end
     end
 
-    -- ESP + Hitbox
+    -- ESP
     if features.ESP then
         updateESPAndHitbox()
     else
@@ -547,5 +551,5 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-print("MM2 Toplu Hile V2 (Türkçe) Yüklendi! Beyo tarafından hazırlanmıştır.")
+print("MM2 Toplu Hile V3 (Türkçe) Yüklendi! Beyo tarafından hazırlanmıştır.")
 print("Ctrl: Panel Gizle/Göster | F2: Tüm Hileleri Aç/Kapa | F3: Işınlanma Menüsü")
