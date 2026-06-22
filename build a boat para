@@ -1,51 +1,92 @@
--- Arsenal - Triggerbot (Otomatik Ateş Etme)
+-- Adopt Me - AFK Otomatik Para Kasma (Ctrl ile Aç/Kapa)
 -- Executor: Synapse X, Krnl, Fluxus, ScriptWare
--- Çalışma prensibi: Nişan alınan oyuncunun üzerinde kırmızı isim göründüğünde otomatik ateş eder.
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local Camera = workspace.CurrentCamera
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local triggerActive = false
-local mouse = LocalPlayer:GetMouse()
+local afkFarm = false
+local farmLoop = nil
 
--- Triggerbot fonksiyonu
-local function triggerBot()
-    if not triggerActive then return end
+-- Para toplama fonksiyonu
+local function collectMoney()
     if not LocalPlayer.Character then return end
+    local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
     
-    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-    if not tool then return end
-    
-    -- Arsenal'de silahlar genelde "Tool" altında olur
-    local target = mouse.Target
-    if target and target.Parent and target.Parent:FindFirstChild("Humanoid") then
-        local player = Players:GetPlayerFromCharacter(target.Parent)
-        if player and player ~= LocalPlayer then
-            -- Ateş et
-            mouse1click()
-            wait(0.05)
+    -- 1) Yerdeki paraları topla
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name:lower():find("money") or obj.Name:lower():find("coin") or obj.Name:lower():find("cash") then
+            local dist = (obj.Position - root.Position).Magnitude
+            if dist < 20 then
+                local remote = ReplicatedStorage:FindFirstChild("CollectMoney")
+                if remote then
+                    remote:FireServer(obj)
+                    wait(0.05)
+                end
+            end
         end
+    end
+    
+    -- 2) Oyuncunun evcil hayvanlarının topladıklarını al
+    local pets = LocalPlayer:FindFirstChild("Pets")
+    if pets then
+        for _, pet in ipairs(pets:GetChildren()) do
+            if pet:IsA("Model") then
+                local remote = ReplicatedStorage:FindFirstChild("CollectPetMoney")
+                if remote then
+                    remote:FireServer(pet)
+                    wait(0.05)
+                end
+            end
+        end
+    end
+    
+    -- 3) Görevleri otomatik yap (basit)
+    local tasks = LocalPlayer.PlayerGui:FindFirstChild("Tasks")
+    if tasks then
+        for _, task in ipairs(tasks:GetChildren()) do
+            if task:IsA("Frame") and task.Visible then
+                -- Görev butonuna tıkla
+                local button = task:FindFirstChild("CollectButton")
+                if button and button:IsA("TextButton") then
+                    button:FireServer()
+                    wait(0.1)
+                end
+            end
+        end
+    end
+end
+
+-- AFK döngüsü
+local function startAFKFarm()
+    afkFarm = true
+    print("AFK para kasma başladı...")
+    while afkFarm do
+        collectMoney()
+        wait(1)
     end
 end
 
 -- Ctrl ile aç/kapa
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl then
-        triggerActive = not triggerActive
-        if triggerActive then
-            print("Triggerbot AÇIK (kırmızı isimli hedefe otomatik ateş eder)")
+        afkFarm = not afkFarm
+        if afkFarm then
+            print("AFK para kasma AÇIK")
+            if farmLoop then coroutine.close(farmLoop) end
+            farmLoop = coroutine.create(startAFKFarm)
+            coroutine.resume(farmLoop)
         else
-            print("Triggerbot KAPALI")
+            print("AFK para kasma KAPALI")
+            if farmLoop then coroutine.close(farmLoop) end
+            farmLoop = nil
         end
     end
 end)
 
--- Sürekli kontrol
-RunService.Heartbeat:Connect(function()
-    triggerBot()
-end)
-
-print("Arsenal Triggerbot yüklendi! Ctrl ile AÇ/KAPA yapabilirsiniz.")
+print("Adopt Me - AFK Otomatik Para Kasma yüklendi!")
+print("Ctrl tuşuna basarak AÇ/KAPA yapabilirsiniz.")
