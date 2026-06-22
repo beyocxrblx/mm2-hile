@@ -1,62 +1,128 @@
--- Build A Boat For Treasure - Sarı Takım İçin Otomatik Uç + Reset
+-- Build A Boat - CTRL ile Gemi İnşası ve Hareket Kopyalama (Tam Taklit)
 -- Executor: Synapse X, Krnl, Fluxus, ScriptWare
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
-local flying = false
-local targetZ = -1600  -- Map sonu Z koordinatı
+local recording = false
+local copiedBoat = nil
+local originalBoat = nil
+local recordedActions = {}  -- {CFrame, Velocity, RotVelocity, Time}
+local startTime = 0
 
--- Ana döngü
-RunService.Heartbeat:Connect(function()
-    if not flying then return end
+-- Gemiyi kopyala (ilk anda)
+local function duplicateBoat()
+    if copiedBoat then copiedBoat:Destroy() end
     if not LocalPlayer.Character then return end
     
-    local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-    if not root or not humanoid then return end
-    
-    -- Uçma modu
-    humanoid.PlatformStand = true
-    
-    -- Sarı takım pozisyonu: Z negatif yönde ilerle
-    -- Sarı takım genelde başlangıçta Z=0 civarındadır, beyaz takım Z pozitif yönde gider
-    local direction = Vector3.new(0, 0, -1)
-    root.Velocity = direction * 100
-    
-    -- Map sonuna geldi mi kontrol et
-    if root.Position.Z <= targetZ then
-        humanoid.Health = 0
-        flying = false
-        print("Map sonu! Reset atıldı.")
-        
-        LocalPlayer.CharacterAdded:Connect(function()
-            wait(1)
-            if flying then return end
-            flying = true
-            print("Yeniden başlatıldı.")
-        end)
+    local char = LocalPlayer.Character
+    local boat = char:FindFirstChild("Boat")
+    if not boat then
+        -- Karakterin kendisini gemi olarak al
+        boat = char
     end
-end)
+    
+    originalBoat = boat
+    copiedBoat = boat:Clone()
+    copiedBoat.Name = "CopiedBoat_" .. tick()
+    copiedBoat.Parent = Workspace
+    copiedBoat:SetPrimaryPartCFrame(boat:GetPrimaryPartCFrame())
+    
+    -- Hareketleri sıfırla
+    for _, part in ipairs(copiedBoat:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.Velocity = Vector3.new(0,0,0)
+            part.RotVelocity = Vector3.new(0,0,0)
+        end
+    end
+end
 
--- Ctrl ile aç/kapa
+-- Anlık hareketleri kaydet
+local function recordAction()
+    if not originalBoat then return end
+    local root = originalBoat:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    table.insert(recordedActions, {
+        CFrame = root.CFrame,
+        Velocity = root.Velocity,
+        RotVelocity = root.RotVelocity,
+        Time = tick() - startTime
+    })
+end
+
+-- Kaydedilen hareketleri oynat
+local function replayActions()
+    if not copiedBoat then return end
+    local copiedRoot = copiedBoat:FindFirstChild("HumanoidRootPart")
+    if not copiedRoot then return end
+    
+    local currentTime = tick() - startTime
+    local closest = nil
+    local closestDiff = math.huge
+    
+    for _, action in ipairs(recordedActions) do
+        local diff = math.abs(action.Time - currentTime)
+        if diff < closestDiff then
+            closestDiff = diff
+            closest = action
+        end
+    end
+    
+    if closest then
+        copiedRoot.CFrame = closest.CFrame
+        copiedRoot.Velocity = closest.Velocity
+        copiedRoot.RotVelocity = closest.RotVelocity
+        
+        -- Diğer parçaları da kopyala
+        for _, part in ipairs(copiedBoat:GetDescendants()) do
+            if part:IsA("BasePart") and part ~= copiedRoot then
+                local origPart = originalBoat:FindFirstChild(part.Name)
+                if origPart then
+                    part.CFrame = origPart.CFrame
+                    part.Velocity = origPart.Velocity
+                    part.RotVelocity = origPart.RotVelocity
+                end
+            end
+        end
+    end
+end
+
+-- CTRL ile başlat/durdur
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl then
-        flying = not flying
-        if flying then
-            print("Sarı takım otomatik uç AÇIK (Z negatif yönde)")
+        if not recording then
+            -- Kayıt başlat
+            recording = true
+            recordedActions = {}
+            startTime = tick()
+            duplicateBoat()
+            print("Kayıt başladı. Ctrl ile durdurana kadar hareketleriniz taklit edilecek.")
         else
-            print("Otomatik uç KAPALI")
-            if LocalPlayer.Character then
-                local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-                if root then root.Velocity = Vector3.new(0, 0, 0) end
-                if humanoid then humanoid.PlatformStand = false end
-            end
+            -- Kayıt durdur
+            recording = false
+            print("Kayıt durduruldu. Son hareketler tekrarlanıyor...")
+            
+            -- Sonsuz döngüde oynat
+            spawn(function()
+                while not recording do
+                    replayActions()
+                    wait(0.05)
+                end
+            end)
         end
     end
 end)
 
-print("Yüklendi! Ctrl ile AÇ/KAPA yapın. Sarı takım için Z negatif yönde uçar.")
+-- Her frame'de kaydet
+RunService.Heartbeat:Connect(function()
+    if recording and originalBoat then
+        recordAction()
+    end
+end)
+
+print("Build A Boat - Gemi Kopyalama ve Taklit Yüklendi!")
+print("CTRL ile başlat/durdur. Gittiğin yöne, yaptığın hareketlere göre kopya gemi aynısını yapar.")
