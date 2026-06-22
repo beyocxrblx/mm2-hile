@@ -1,132 +1,64 @@
--- Build A Boat For Treasure - Otomatik Uçarak İlerleme + Map Sonunda Reset
+-- Build A Boat For Treasure - Otomatik Uç + Reset (Çalışan Basit Versiyon)
 -- Executor: Synapse X, Krnl, Fluxus, ScriptWare
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local TeleportService = game:GetService("TeleportService")
+local RunService = game:GetService("RunService")
 
-local isRunning = false
-local currentTarget = nil
+local flying = false
+local targetZ = -1600  -- Map sonu Z koordinatı
+local resetDistance = 50  -- Map sonuna yaklaşınca reset
 
--- Hedef konumlar (Build A Boat mapindeki ilerleme rotası)
-local targets = {
-    Vector3.new(0, 10, -100),   -- Başlangıçtan ileri
-    Vector3.new(0, 10, -300),   -- Orta bölge
-    Vector3.new(0, 10, -600),   -- İleri bölge
-    Vector3.new(0, 10, -1000),  -- Map sonuna doğru
-    Vector3.new(0, 10, -1500),  -- Map sonu
-}
-
--- Map sonu kontrolü (sınır)
-local MAP_END_Z = -1600
-
-local function moveToTarget(target)
+-- Ana döngü
+RunService.Heartbeat:Connect(function()
+    if not flying then return end
     if not LocalPlayer.Character then return end
+    
     local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
     if not root or not humanoid then return end
     
-    currentTarget = target
+    -- Uçma modu
     humanoid.PlatformStand = true
     
-    local direction = (target - root.Position).Unit
-    local distance = (target - root.Position).Magnitude
+    -- İleri doğru uç (Z ekseninde negatif yönde)
+    local direction = Vector3.new(0, 0, -1)
+    root.Velocity = direction * 100
     
-    while distance > 5 and isRunning do
-        if not LocalPlayer.Character then break end
-        root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if not root then break end
+    -- Map sonuna geldi mi kontrol et
+    if root.Position.Z <= targetZ then
+        -- Reset at (karakteri öldür)
+        humanoid.Health = 0
+        flying = false
+        print("Map sonu! Reset atıldı.")
         
-        direction = (target - root.Position).Unit
-        distance = (target - root.Position).Magnitude
-        root.Velocity = direction * 80
-        
-        wait(0.1)
-    end
-    
-    if root then
-        root.Velocity = Vector3.new(0, 0, 0)
-        humanoid.PlatformStand = false
-    end
-end
-
--- Reset atma (karakteri öldürüp yeniden doğma)
-local function resetCharacter()
-    if LocalPlayer.Character then
-        local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid.Health = 0
-            print("Reset atılıyor...")
-        end
-    end
-end
-
--- Map sonuna gelindi mi kontrol et
-local function checkMapEnd()
-    if not LocalPlayer.Character then return false end
-    local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return false end
-    return root.Position.Z < MAP_END_Z
-end
-
-local function startAutoFly()
-    isRunning = true
-    print("Otomatik uçuş başladı...")
-    
-    -- Karakter doğmasını bekle
-    while not LocalPlayer.Character do
-        wait(0.5)
-    end
-    
-    wait(1)
-    
-    -- Tüm hedefleri sırayla git
-    for i, target in ipairs(targets) do
-        if not isRunning then break end
-        print("Hedef " .. i .. "/" .. #targets .. " gidiliyor: " .. tostring(target))
-        moveToTarget(target)
-        wait(0.5)
-    end
-    
-    -- Map sonuna ulaşıldı mı kontrol et
-    if isRunning and checkMapEnd() then
-        print("Map sonuna ulaşıldı! Reset atılıyor...")
-        resetCharacter()
-        wait(2)
-        -- Yeniden doğduktan sonra tekrar başlat
-        if isRunning then
-            print("Yeniden doğuldu, tekrar başlıyor...")
+        -- Yeniden doğunca tekrar başlat
+        LocalPlayer.CharacterAdded:Connect(function()
             wait(1)
-            startAutoFly() -- Kendini yeniden çağır (sonsuz döngü)
-        end
-    else
-        print("Map sonuna ulaşılamadı, işlem durduruldu.")
-        isRunning = false
+            if flying then return end
+            flying = true
+            print("Yeniden başlatıldı.")
+        end)
     end
-end
+end)
 
 -- Ctrl ile aç/kapa
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
+UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl then
-        if isRunning then
-            isRunning = false
-            print("Otomatik uçuş durduruldu.")
+        flying = not flying
+        if flying then
+            print("Otomatik uç AÇIK")
+        else
+            print("Otomatik uç KAPALI")
             if LocalPlayer.Character then
                 local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                 local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
                 if root then root.Velocity = Vector3.new(0, 0, 0) end
                 if humanoid then humanoid.PlatformStand = false end
             end
-        else
-            coroutine.wrap(startAutoFly)()
         end
     end
 end)
 
-print("Build A Boat - Otomatik Uçarak İlerleme + Reset yüklendi!")
-print("Ctrl tuşuna basarak AÇ/KAPA yapabilirsiniz.")
+print("Yüklendi! Ctrl ile AÇ/KAPA yapın.")
