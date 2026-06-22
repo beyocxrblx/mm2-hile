@@ -1,128 +1,51 @@
--- Build A Boat - CTRL ile Gemi İnşası ve Hareket Kopyalama (Tam Taklit)
+-- Arsenal - Triggerbot (Otomatik Ateş Etme)
 -- Executor: Synapse X, Krnl, Fluxus, ScriptWare
+-- Çalışma prensibi: Nişan alınan oyuncunun üzerinde kırmızı isim göründüğünde otomatik ateş eder.
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
+local Camera = workspace.CurrentCamera
 
-local recording = false
-local copiedBoat = nil
-local originalBoat = nil
-local recordedActions = {}  -- {CFrame, Velocity, RotVelocity, Time}
-local startTime = 0
+local triggerActive = false
+local mouse = LocalPlayer:GetMouse()
 
--- Gemiyi kopyala (ilk anda)
-local function duplicateBoat()
-    if copiedBoat then copiedBoat:Destroy() end
+-- Triggerbot fonksiyonu
+local function triggerBot()
+    if not triggerActive then return end
     if not LocalPlayer.Character then return end
     
-    local char = LocalPlayer.Character
-    local boat = char:FindFirstChild("Boat")
-    if not boat then
-        -- Karakterin kendisini gemi olarak al
-        boat = char
-    end
+    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    if not tool then return end
     
-    originalBoat = boat
-    copiedBoat = boat:Clone()
-    copiedBoat.Name = "CopiedBoat_" .. tick()
-    copiedBoat.Parent = Workspace
-    copiedBoat:SetPrimaryPartCFrame(boat:GetPrimaryPartCFrame())
-    
-    -- Hareketleri sıfırla
-    for _, part in ipairs(copiedBoat:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.Velocity = Vector3.new(0,0,0)
-            part.RotVelocity = Vector3.new(0,0,0)
+    -- Arsenal'de silahlar genelde "Tool" altında olur
+    local target = mouse.Target
+    if target and target.Parent and target.Parent:FindFirstChild("Humanoid") then
+        local player = Players:GetPlayerFromCharacter(target.Parent)
+        if player and player ~= LocalPlayer then
+            -- Ateş et
+            mouse1click()
+            wait(0.05)
         end
     end
 end
 
--- Anlık hareketleri kaydet
-local function recordAction()
-    if not originalBoat then return end
-    local root = originalBoat:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    
-    table.insert(recordedActions, {
-        CFrame = root.CFrame,
-        Velocity = root.Velocity,
-        RotVelocity = root.RotVelocity,
-        Time = tick() - startTime
-    })
-end
-
--- Kaydedilen hareketleri oynat
-local function replayActions()
-    if not copiedBoat then return end
-    local copiedRoot = copiedBoat:FindFirstChild("HumanoidRootPart")
-    if not copiedRoot then return end
-    
-    local currentTime = tick() - startTime
-    local closest = nil
-    local closestDiff = math.huge
-    
-    for _, action in ipairs(recordedActions) do
-        local diff = math.abs(action.Time - currentTime)
-        if diff < closestDiff then
-            closestDiff = diff
-            closest = action
-        end
-    end
-    
-    if closest then
-        copiedRoot.CFrame = closest.CFrame
-        copiedRoot.Velocity = closest.Velocity
-        copiedRoot.RotVelocity = closest.RotVelocity
-        
-        -- Diğer parçaları da kopyala
-        for _, part in ipairs(copiedBoat:GetDescendants()) do
-            if part:IsA("BasePart") and part ~= copiedRoot then
-                local origPart = originalBoat:FindFirstChild(part.Name)
-                if origPart then
-                    part.CFrame = origPart.CFrame
-                    part.Velocity = origPart.Velocity
-                    part.RotVelocity = origPart.RotVelocity
-                end
-            end
-        end
-    end
-end
-
--- CTRL ile başlat/durdur
+-- Ctrl ile aç/kapa
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl then
-        if not recording then
-            -- Kayıt başlat
-            recording = true
-            recordedActions = {}
-            startTime = tick()
-            duplicateBoat()
-            print("Kayıt başladı. Ctrl ile durdurana kadar hareketleriniz taklit edilecek.")
+        triggerActive = not triggerActive
+        if triggerActive then
+            print("Triggerbot AÇIK (kırmızı isimli hedefe otomatik ateş eder)")
         else
-            -- Kayıt durdur
-            recording = false
-            print("Kayıt durduruldu. Son hareketler tekrarlanıyor...")
-            
-            -- Sonsuz döngüde oynat
-            spawn(function()
-                while not recording do
-                    replayActions()
-                    wait(0.05)
-                end
-            end)
+            print("Triggerbot KAPALI")
         end
     end
 end)
 
--- Her frame'de kaydet
+-- Sürekli kontrol
 RunService.Heartbeat:Connect(function()
-    if recording and originalBoat then
-        recordAction()
-    end
+    triggerBot()
 end)
 
-print("Build A Boat - Gemi Kopyalama ve Taklit Yüklendi!")
-print("CTRL ile başlat/durdur. Gittiğin yöne, yaptığın hareketlere göre kopya gemi aynısını yapar.")
+print("Arsenal Triggerbot yüklendi! Ctrl ile AÇ/KAPA yapabilirsiniz.")
